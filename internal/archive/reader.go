@@ -21,14 +21,21 @@ func ExtractTPK(tpkPath string, destPath string) error {
 	}
 	defer file.Close()
 
-	header := make([]byte, 97) 
-	_, err = file.Read(header)
+	header := make([]byte, 97)
+	n, err := file.Read(header)
 	if err != nil {
 		return err
 	}
 
+	if n < 97 {
+		return fmt.Errorf("❌ Ошибка: заголовок `.tpk` повреждён (ожидалось 97 байт, получено %d)", n)
+	}
+
 	expectedHash := header[:32]
 	signatureLen := header[32]
+	if signatureLen > 64 {
+		return fmt.Errorf("❌ Ошибка: некорректная длина подписи %d (максимум 64)", signatureLen)
+	}
 	signature := header[33 : 33+signatureLen]
 
 	hasher := sha256.New()
@@ -54,7 +61,11 @@ func ExtractTPK(tpkPath string, destPath string) error {
 		fmt.Println("✅ Подпись проверена, пакет подлинный.")
 	}
 
-	file.Seek(97, io.SeekStart)
+	_, err = file.Seek(97, io.SeekStart)
+	if err != nil {
+		return err
+	}
+
 	zstdReader, err := zstd.NewReader(file)
 	if err != nil {
 		return err
@@ -92,5 +103,6 @@ func ExtractTPK(tpkPath string, destPath string) error {
 		}
 	}
 
+	fmt.Println("✅ Пакет успешно установлен!")
 	return nil
 }

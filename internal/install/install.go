@@ -20,6 +20,6 @@ func Package(pkgPath string) error {
 		return err
 	}
 
-	fmt.Println("✅ Пакет установлен успешно!")
+	fmt.Println("✅ Пакет установлен успешно!") 
 	return nil
 }

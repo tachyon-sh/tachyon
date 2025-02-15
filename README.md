@@ -19,7 +19,7 @@ Tachyon – это новый супербыстрый пакетный мене
 ## 🔧 Установка
 
 ```sh
-git clone https://github.com/your-repo/tachyon.git
+git clone https://github.com/tachyon/tachyon.git
 cd tachyon
 make install
 ```

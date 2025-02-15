@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"bytes"
+	"strings"
 	"tachyon/internal/security"
 
 	"github.com/klauspost/compress/zstd"
@@ -22,20 +23,13 @@ func ExtractTPK(tpkPath string, destPath string) error {
 	defer file.Close()
 
 	header := make([]byte, 97)
-	n, err := file.Read(header)
+	_, err = file.Read(header)
 	if err != nil {
 		return err
 	}
 
-	if n < 97 {
-		return fmt.Errorf("❌ Ошибка: заголовок `.tpk` повреждён (ожидалось 97 байт, получено %d)", n)
-	}
-
 	expectedHash := header[:32]
 	signatureLen := header[32]
-	if signatureLen > 64 {
-		return fmt.Errorf("❌ Ошибка: некорректная длина подписи %d (максимум 64)", signatureLen)
-	}
 	signature := header[33 : 33+signatureLen]
 
 	hasher := sha256.New()
@@ -61,11 +55,16 @@ func ExtractTPK(tpkPath string, destPath string) error {
 		fmt.Println("✅ Подпись проверена, пакет подлинный.")
 	}
 
-	_, err = file.Seek(97, io.SeekStart)
+	packageName := strings.TrimSuffix(filepath.Base(tpkPath), filepath.Ext(tpkPath))
+	packageInstallPath := filepath.Join(destPath, packageName)
+
+	err = os.MkdirAll(packageInstallPath, os.ModePerm)
 	if err != nil {
 		return err
 	}
 
+	// Сбрасываем позицию и читаем архив
+	file.Seek(97, io.SeekStart)
 	zstdReader, err := zstd.NewReader(file)
 	if err != nil {
 		return err
@@ -83,7 +82,7 @@ func ExtractTPK(tpkPath string, destPath string) error {
 			return err
 		}
 
-		outPath := filepath.Join(destPath, header.Name)
+		outPath := filepath.Join(packageInstallPath, header.Name) // Теперь файлы идут в свою папку
 		fmt.Println("📂 Распаковка:", outPath)
 
 		if header.Typeflag == tar.TypeDir {
@@ -103,6 +102,6 @@ func ExtractTPK(tpkPath string, destPath string) error {
 		}
 	}
 
-	fmt.Println("✅ Пакет успешно установлен!")
+	fmt.Println("✅ Пакет успешно установлен:", packageName)
 	return nil
 }

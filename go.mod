@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/klauspost/compress v1.15.15
 	github.com/spf13/cobra v1.7.0
+	golang.org/x/sys v0.30.0
 )
 
 require (

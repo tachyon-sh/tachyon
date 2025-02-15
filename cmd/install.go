@@ -9,6 +9,7 @@ import (
 )
 
 var deps bool
+var channel string
 
 var installCmd = &cobra.Command{
 	Use:   "install <package.tpk>",
@@ -17,7 +18,7 @@ var installCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		packagePath := args[0]
 
-		err := install.Package(packagePath, deps)
+		err := install.Package(packagePath, deps, channel)
 		if err != nil {
 			fmt.Println("Ошибка установки:", err)
 			os.Exit(1)
@@ -29,5 +30,6 @@ var installCmd = &cobra.Command{
 
 func init() {
 	installCmd.Flags().BoolVarP(&deps, "deps", "d", false, "Установить зависимости")
+	installCmd.Flags().StringVarP(&channel, "channel", "c", "stable", "Выбрать канал (stable, beta, nightly)")
 	rootCmd.AddCommand(installCmd)
 }

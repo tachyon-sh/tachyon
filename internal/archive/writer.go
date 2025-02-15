@@ -22,7 +22,7 @@ func CreateTPK(inputDir string, outputFile string) error {
 	}
 	defer out.Close()
 
-	headerPlaceholder := make([]byte, 97) // 32 (SHA-256) + 1 (длина подписи) + 64 (подпись)
+	headerPlaceholder := make([]byte, 97)
 	_, err = out.Write(headerPlaceholder)
 	if err != nil {
 		return err
@@ -89,21 +89,21 @@ func CreateTPK(inputDir string, outputFile string) error {
 	hash := hasher.Sum(nil)
 
 	signature, err := security.SignSHA256(hex.EncodeToString(hash))
-	signatureBytes := make([]byte, 64) // Гарантируем, что подпись всегда 64 байта
+	signatureBytes := make([]byte, 64) 
 	signatureLen := byte(0)
 
 	if err == nil {
 		sigDecoded, _ := hex.DecodeString(signature)
-		copy(signatureBytes[:], sigDecoded) // Заполняем `signatureBytes` правильными данными
+		copy(signatureBytes[:], sigDecoded) 
 		signatureLen = 64
 		fmt.Println("✅ Файл подписан.")
 	} else {
 		fmt.Println("⚠️ Подпись отсутствует, продолжаем без неё.")
 	}
 
-	_, err = out.WriteAt(hash, 0)                           // 32 байта SHA-256
-	_, err = out.WriteAt([]byte{signatureLen}, 32)         // 1 байт длины подписи
-	_, err = out.WriteAt(signatureBytes[:signatureLen], 33) // 64 байта подписи (или пустой массив)
+	_, err = out.WriteAt(hash, 0)                           
+	_, err = out.WriteAt([]byte{signatureLen}, 32)         
+	_, err = out.WriteAt(signatureBytes[:signatureLen], 33) 
 
 	_, err = io.Copy(out, &archiveBuffer)
 	if err != nil {

@@ -2,37 +2,34 @@ package install
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"tachyon/internal/archive"
+	"tachyon/internal/cache"
 	"tachyon/internal/env"
 )
 
-func Package(pkgPath string, installDeps bool) error {
-	fmt.Println("📦 Установка пакета:", pkgPath)
+func Package(pkgPath string, installDeps bool, channel string) error {
+	fmt.Println("📦 Установка пакета:", pkgPath, "(канал:", channel, ")")
 
 	sitePackages, err := env.GetSitePackagesPath()
 	if err != nil {
 		return err
 	}
 
+	cachedPkg := cache.GetFromChannel(filepath.Base(pkgPath), channel)
+	if cache.CacheExists(filepath.Base(cachedPkg)) {
+		fmt.Println("📡 Используем версию из канала:", channel, "➡", cachedPkg)
+		pkgPath = cachedPkg
+	} else {
+		err := cache.SaveToChannel(pkgPath, channel)
+		if err != nil {
+			fmt.Println("⚠️ Ошибка кеширования:", err)
+		}
+	}
+
 	err = archive.ExtractTPK(pkgPath, sitePackages)
 	if err != nil {
 		return err
-	}
-
-	if installDeps {
-		depsPath := filepath.Join(sitePackages, filepath.Base(pkgPath)+".deps")
-		if _, err := os.Stat(depsPath); err == nil {
-			fmt.Println("📦 Установка зависимостей из:", depsPath)
-			depsFile, err := os.ReadFile(depsPath)
-			if err == nil {
-				for _, dep := range filepath.SplitList(string(depsFile)) {
-					fmt.Println("📦 Устанавливаем зависимость:", dep)
-					Package(dep, false) // Рекурсивная установка
-				}
-			}
-		}
 	}
 
 	return nil

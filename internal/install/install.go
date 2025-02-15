@@ -2,14 +2,15 @@ package install
 
 import (
 	"fmt"
-	"path/filepath"
 	"tachyon/internal/archive"
 	"tachyon/internal/cache"
 	"tachyon/internal/env"
+	"tachyon/internal/timer"
+	"path/filepath" 
 )
 
 func Package(pkgPath string, installDeps bool, channel string) error {
-	fmt.Println("📦 Установка пакета:", pkgPath, "(канал:", channel, ")")
+	t := timer.StartTask(fmt.Sprintf("Установка пакета: %s (канал: %s)", pkgPath, channel))
 
 	sitePackages, err := env.GetSitePackagesPath()
 	if err != nil {
@@ -32,5 +33,6 @@ func Package(pkgPath string, installDeps bool, channel string) error {
 		return err
 	}
 
+	t.Stop()
 	return nil
 }

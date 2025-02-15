@@ -2,119 +2,84 @@ package archive
 
 import (
 	"archive/tar"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"bytes"
-	"tachyon/internal/security"
 
 	"github.com/klauspost/compress/zstd"
 )
 
-func CreateTPK(inputDir string, outputFile string) error {
-	tempFile := outputFile + ".tmp"
-	out, err := os.Create(tempFile)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+func PackTPK(sourceDir, outputFile string) error {
+	fmt.Println("📦 Упаковка пакета:", sourceDir)
 
-	headerPlaceholder := make([]byte, 97)
-	_, err = out.Write(headerPlaceholder)
+	outFile, err := os.Create(outputFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("❌ Ошибка создания .tpk: %w", err)
 	}
+	defer outFile.Close()
 
-	var archiveBuffer bytes.Buffer
-	hasher := sha256.New()
-	multiWriter := io.MultiWriter(&archiveBuffer, hasher)
-
-	zstdWriter, err := zstd.NewWriter(multiWriter)
+	zstdWriter, err := zstd.NewWriter(outFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("❌ Ошибка инициализации ZSTD: %w", err)
 	}
-	defer zstdWriter.Close()
 
 	tarWriter := tar.NewWriter(zstdWriter)
-	defer tarWriter.Close()
 
-	err = filepath.Walk(inputDir, func(filePath string, info os.FileInfo, err error) error {
+	err = filepath.Walk(sourceDir, func(filePath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(sourceDir, filePath)
 		if err != nil {
 			return err
 		}
 
-		relPath, err := filepath.Rel(inputDir, filePath)
+		finalPath := filepath.Join("test-package", relPath)
+
+		header, err := tar.FileInfoHeader(info, "")
 		if err != nil {
 			return err
 		}
+		header.Name = finalPath
 
-		header, err := tar.FileInfoHeader(info, relPath)
+		if err := tarWriter.WriteHeader(header); err != nil {
+			return fmt.Errorf("❌ Ошибка записи заголовка TAR: %w", err)
+		}
+
+		src, err := os.Open(filePath)
 		if err != nil {
-			return err
+			return fmt.Errorf("❌ Ошибка открытия файла: %w", err)
 		}
-		header.Name = relPath
+		defer src.Close()
 
-		err = tarWriter.WriteHeader(header)
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			file, err := os.Open(filePath)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
-
-			_, err = io.Copy(tarWriter, file)
-			if err != nil {
-				return err
-			}
+		if _, err := io.Copy(tarWriter, src); err != nil {
+			return fmt.Errorf("❌ Ошибка копирования в TAR: %w", err)
 		}
 
-		fmt.Println("Добавлен в архив:", relPath)
+		fmt.Println("📦 Добавлен в архив:", finalPath)
 		return nil
 	})
-
 	if err != nil {
-		return err
+		return fmt.Errorf("❌ Ошибка обхода файлов: %w", err)
 	}
 
-	tarWriter.Close()
-	zstdWriter.Close()
-
-	hash := hasher.Sum(nil)
-
-	signature, err := security.SignSHA256(hex.EncodeToString(hash))
-	signatureBytes := make([]byte, 64) 
-	signatureLen := byte(0)
-
-	if err == nil {
-		sigDecoded, _ := hex.DecodeString(signature)
-		copy(signatureBytes[:], sigDecoded) 
-		signatureLen = 64
-		fmt.Println("✅ Файл подписан.")
-	} else {
-		fmt.Println("⚠️ Подпись отсутствует, продолжаем без неё.")
+	if err := tarWriter.Close(); err != nil {
+		return fmt.Errorf("❌ Ошибка закрытия TAR: %w", err)
+	}
+	if err := zstdWriter.Close(); err != nil {
+		return fmt.Errorf("❌ Ошибка закрытия ZSTD: %w", err)
 	}
 
-	_, err = out.WriteAt(hash, 0)                           
-	_, err = out.WriteAt([]byte{signatureLen}, 32)         
-	_, err = out.WriteAt(signatureBytes[:signatureLen], 33) 
-
-	_, err = io.Copy(out, &archiveBuffer)
+	stat, err := outFile.Stat()
 	if err != nil {
-		return err
+		return fmt.Errorf("❌ Ошибка Stat() .tpk: %w", err)
 	}
+	fmt.Printf("📦 Упаковка завершена, размер архива: %d байт\n", stat.Size())
 
-	err = os.Rename(tempFile, outputFile)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("📦 Пакет успешно упакован:", outputFile)
 	return nil
 }

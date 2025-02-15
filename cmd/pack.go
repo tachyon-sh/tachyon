@@ -8,30 +8,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var outputPath string
-
 var packCmd = &cobra.Command{
-	Use:   "pack <folder>",
-	Short: "Упаковывает директорию в .tpk",
-	Args:  cobra.ExactArgs(1),
+	Use:   "pack <source-dir> -o <output.tpk>",
+	Short: "Создаёт .tpk из указанной директории",
 	Run: func(cmd *cobra.Command, args []string) {
-		inputFolder := args[0]
-
-		if outputPath == "" {
-			outputPath = inputFolder + ".tpk"
-		}
-
-		err := archive.CreateTPK(inputFolder, outputPath)
-		if err != nil {
-			fmt.Println("Ошибка упаковки:", err)
+		if len(args) < 1 {
+			fmt.Println("❌ Ошибка: укажите директорию для упаковки")
 			os.Exit(1)
 		}
 
-		fmt.Println("Пакет успешно упакован:", outputPath)
+		outputFile, _ := cmd.Flags().GetString("output")
+		if outputFile == "" {
+			fmt.Println("❌ Ошибка: укажите -o <output.tpk>")
+			os.Exit(1)
+		}
+
+		err := archive.PackTPK(args[0], outputFile)
+		if err != nil {
+			fmt.Println("❌ Ошибка упаковки:", err)
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
-	packCmd.Flags().StringVarP(&outputPath, "output", "o", "", "Выходной файл .tpk")
+	packCmd.Flags().StringP("output", "o", "", "Файл для сохранения .tpk")
 	rootCmd.AddCommand(packCmd)
 }

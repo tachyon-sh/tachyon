@@ -1,5 +1,11 @@
+BUILD_DIR=$(HOME)/.rails/bin/
+BINARY_NAME=tachyon
+
+.PHONY: build install clean run
+
 build:
-	go build -o tachyon
+	@echo "⏳ Собираем $(BINARY_NAME)..."
+	go build -o $(BINARY_NAME)
 	@echo ""
 	@echo "###################################################"
 	@echo "###################################################"
@@ -30,3 +36,16 @@ build:
 	@echo "###################################################"
 	@echo "###################################################"
 	@echo "✅ Собрано успешно!"
+
+install: build
+	@mkdir -p $(BUILD_DIR)
+	@cp $(BINARY_NAME) $(BUILD_DIR)
+	@echo "✅ Установлено в $(BUILD_DIR)$(BINARY_NAME)"
+
+clean:
+	rm -f $(BINARY_NAME)
+	@echo "🗑 Очистка завершена!"
+
+run: build
+	@echo "🚀 Запуск $(BINARY_NAME)..."
+	./$(BINARY_NAME)
